@@ -167,3 +167,12 @@ LLM 被要求输出：
 - LLM HTTP 失败：`LLMError`。
 - 超过 `MAX_LOOP_TURNS`：`MaxTurnsExceeded`。
 - 每次失败都记入 JSONL trace。
+
+## 提交说明
+
+本仓库即为题目要求的代码，已推送至 GitHub：
+
+**仓库地址:https://github.com/acvz1/mini-agent-runtime**
+
+- 测试：`pytest -q`（离线，25 passed）；`pytest -m live`（真实 LLM，需有效 key，实测通过）。
+- 真实 LLM：复制 `.env.example` 为 `.env` 并填入 key 后运行 CLI 或 `pytest -m live`。
