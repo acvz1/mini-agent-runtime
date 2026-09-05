@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini Agent Runtime</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #17202a;
+      --ink: #e8eef4;
+      --muted: #8aa0b5;
+      --accent: #3ecf8e;
+      --line: #243140;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1c3a32 0%, var(--bg) 45%);
+      color: var(--ink);
+    }
+    header { padding: 20px 24px 8px; }
+    h1 { margin: 0; font-size: 22px; letter-spacing: 0.04em; }
+    .sub { color: var(--muted); margin-top: 6px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px 32px; }
+    .window {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 70vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .window h2 {
+      margin: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+    }
+    .log { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .bubble { padding: 10px 12px; border-radius: 10px; white-space: pre-wrap; line-height: 1.45; font-size: 14px; }
+    .user { background: #243447; align-self: flex-end; max-width: 90%; }
+    .agent { background: #1b2d27; border: 1px solid #2d5a46; max-width: 95%; }
+    .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+    input, button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+    }
+    input { flex: 1; background: #10161c; color: var(--ink); }
+    button { background: var(--accent); color: #062016; font-weight: 700; cursor: pointer; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MINI AGENT RUNTIME</h1>
+    <div class="sub">用户 A 的两个独立窗口。左侧查天气记待办，右侧写周报记待办，历史互不影响。</div>
+  </header>
+  <div class="grid">
+    <section class="window" id="w1"></section>
+    <section class="window" id="w2"></section>
+  </div>
+  <script>
+    function mount(el, sessionId, placeholder) {
+      el.innerHTML = `
+        <h2>用户 A · ${sessionId}</h2>
+        <div class="log"></div>
+        <form>
+          <input placeholder="${placeholder}" autocomplete="off" />
+          <button>发送</button>
+        </form>`;
+      const log = el.querySelector(".log");
+      const form = el.querySelector("form");
+      const input = el.querySelector("input");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = "";
+        add(log, "user", text);
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: "A", session_id: sessionId, text })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          add(log, "agent", data.detail || "请求失败");
+          return;
+        }
+        const trace = (data.tool_trace || []).map(
+          t => `${t.name}(${JSON.stringify(t.arguments)}) => ${t.ok ? "ok" : "err"} ${t.output}`
+        ).join("\n");
+        add(log, "agent", data.answer, `think: ${data.think || "-"}\n${trace || "no tools"}`);
+      });
+    }
+    function add(log, cls, text, meta) {
+      const div = document.createElement("div");
+      div.className = "bubble " + cls;
+      div.textContent = text;
+      if (meta) {
+        const m = document.createElement("div");
+        m.className = "meta";
+        m.textContent = meta;
+        div.appendChild(m);
+      }
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+    mount(document.getElementById("w1"), "window1", "查北京天气并记待办：出门带伞");
+    mount(document.getElementById("w2"), "window2", "根据 search 写周报大纲并记待办：写周报");
+  </script>
+</body>
+</html>
